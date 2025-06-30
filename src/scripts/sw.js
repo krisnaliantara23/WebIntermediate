@@ -4,51 +4,20 @@ import { sendStory } from "./data/api.js";
 
 const CACHE_NAME = 'story-app-v1';
 
-// PERBAIKAN: Sesuaikan path dengan struktur direktori yang sebenarnya
-// Gunakan path absolut dari root atau path relatif yang tepat
+// CACHE HANYA FILE YANG PASTI ADA - Untuk menghindari 404
 const ASSETS_TO_CACHE = [
-	// Main files
+	// Main files - pastikan path ini benar
 	'/',
-	'/index.html',
-	'src/index.html', // Sesuaikan dengan letak file HTML
-	
-	// Static assets - PERBAIKAN: Path yang benar berdasarkan struktur
-	'src/styles/styles.css',
-	'src/scripts/index.js',
-	'src/scripts/config.js',
-	
-	// Web manifest dan favicon
-	'src/public/app.webmanifest',
-	'src/public/favicon.ico',
-	'src/public/favicon.png',
+	'./index.html',
 	
 	// External resources yang pasti ada
 	'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
 	'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
 	
-	// Images dengan path yang benar
-	'src/public/images/logo.png',
-	'src/public/images/cinema.png',
-	'src/public/images/HeartRate.png',
-	'src/public/images/popcorn.png',
-	
-	// Icons dengan path yang benar
-	'src/public/icon/icons/icon-72x72.png',
-	'src/public/icon/icons/icon-96x96.png',
-	'src/public/icon/icons/icon-128x128.png',
-	'src/public/icon/icons/icon-144x144.png',
-	'src/public/icon/icons/icon-152x152.png',
-	'src/public/icon/icons/icon-192x192.png',
-	'src/public/icon/icons/icon-384x384.png',
-	'src/public/icon/icons/icon-512x512.png',
-	
-	// Other icons
-	'src/public/icon/map.svg',
-	'src/public/icon/star.svg',
-	'src/public/icon/icons/arrow.svg',
+	// Tambahkan file lain secara bertahap setelah memastikan ada
 ];
 
-// Install event dengan error handling yang lebih baik
+// STRATEGY: Cache what exists, ignore what doesn't
 self.addEventListener('install', (event) => {
 	console.log('[Service Worker] Installing...');
 	event.waitUntil(
@@ -56,38 +25,38 @@ self.addEventListener('install', (event) => {
 			.then(async (cache) => {
 				console.log('[Service Worker] Caching app shell');
 				
-				// Cache files satu per satu dengan better error handling
-				const cachePromises = ASSETS_TO_CACHE.map(async (url) => {
+				// Cache external resources first (pasti ada)
+				const externalResources = ASSETS_TO_CACHE.filter(url => url.startsWith('http'));
+				for (const url of externalResources) {
 					try {
-						if (url.startsWith('http')) {
-							// External resources
-							const response = await fetch(url);
-							if (response.ok) {
-								await cache.put(url, response);
-								console.log(`[SW] Successfully cached external: ${url}`);
-							} else {
-								console.warn(`[SW] External resource failed (${response.status}): ${url}`);
-							}
-						} else {
-							// Local files - test if they exist first
-							const response = await fetch(url);
-							if (response.ok) {
-								await cache.put(url, response);
-								console.log(`[SW] Successfully cached: ${url}`);
-							} else {
-								console.warn(`[SW] File not found (${response.status}): ${url}`);
-								// Don't fail the entire process for missing files
-							}
+						const response = await fetch(url);
+						if (response.ok) {
+							await cache.put(url, response);
+							console.log(`[SW] Cached external: ${url}`);
 						}
 					} catch (error) {
-						console.warn(`[SW] Failed to cache: ${url}`, error.message);
-						// Continue with other files even if one fails
+						console.warn(`[SW] Failed external: ${url}`);
 					}
-				});
+				}
 				
-				// Wait for all cache attempts but don't fail if some files are missing
-				await Promise.allSettled(cachePromises);
-				console.log('[SW] Installation completed');
+				// Cache local files dengan checking
+				const localFiles = ASSETS_TO_CACHE.filter(url => !url.startsWith('http'));
+				for (const url of localFiles) {
+					try {
+						const response = await fetch(url);
+						if (response.ok) {
+							await cache.put(url, response);
+							console.log(`[SW] Cached local: ${url}`);
+						} else {
+							console.warn(`[SW] Local file not found: ${url}`);
+						}
+					} catch (error) {
+						console.warn(`[SW] Failed to cache: ${url}`);
+					}
+				}
+				
+				// DYNAMIC CACHING: Automatically cache files as they're requested
+				console.log('[SW] Basic cache setup completed - will cache dynamically');
 			})
 			.catch((error) => {
 				console.error('[Service Worker] Cache setup failed:', error);
@@ -114,120 +83,76 @@ self.addEventListener('activate', (event) => {
 	self.clients.claim();
 });
 
-// Fetch event dengan improved offline strategy
+// IMPROVED FETCH HANDLER - Cache everything that works
 self.addEventListener('fetch', (event) => {
 	// Skip non-GET requests
 	if (event.request.method !== 'GET') {
 		return;
 	}
 	
-	// Skip non-http requests (chrome-extension, etc.)
+	// Skip non-http requests
 	if (!event.request.url.startsWith('http')) {
 		return;
 	}
 	
-	// Handle different types of requests
-	if (event.request.url.includes('/api/')) {
-		// API requests - network first, cache fallback
-		event.respondWith(handleApiRequest(event.request));
-	} else {
-		// Static assets - cache first, network fallback
-		event.respondWith(handleStaticRequest(event.request));
-	}
+	event.respondWith(handleRequest(event.request));
 });
 
-// Handle API requests (network first)
-async function handleApiRequest(request) {
+async function handleRequest(request) {
 	try {
-		console.log('[SW] API Request - trying network first');
-		const networkResponse = await fetch(request);
-		
-		if (networkResponse.ok) {
-			// Cache successful API responses
-			const cache = await caches.open(CACHE_NAME);
-			cache.put(request, networkResponse.clone());
-		}
-		
-		return networkResponse;
-	} catch (error) {
-		console.log('[SW] Network failed, trying cache for API');
+		// 1. Check cache first
 		const cachedResponse = await caches.match(request);
-		
 		if (cachedResponse) {
+			console.log('[SW] Served from cache:', request.url);
 			return cachedResponse;
 		}
 		
-		// Return offline fallback untuk API
-		return new Response(
-			JSON.stringify({ 
-				error: 'Offline', 
-				message: 'API tidak tersedia saat offline' 
-			}), 
-			{
-				status: 503,
-				statusText: 'Service Unavailable',
-				headers: { 'Content-Type': 'application/json' }
-			}
-		);
-	}
-}
-
-// Handle static requests (cache first)
-async function handleStaticRequest(request) {
-	try {
-		console.log('[SW] Static Request - trying cache first');
-		const cachedResponse = await caches.match(request);
-		
-		if (cachedResponse) {
-			console.log('[SW] Found in cache:', request.url);
-			return cachedResponse;
-		}
-		
-		console.log('[SW] Not in cache, trying network');
+		// 2. Try network
+		console.log('[SW] Fetching from network:', request.url);
 		const networkResponse = await fetch(request);
 		
 		if (networkResponse.ok) {
+			// 3. Cache successful responses dynamically
 			const cache = await caches.open(CACHE_NAME);
 			cache.put(request, networkResponse.clone());
+			console.log('[SW] Dynamically cached:', request.url);
 		}
 		
 		return networkResponse;
-	} catch (error) {
-		console.error('[SW] Both cache and network failed for:', request.url);
 		
-		// Fallback untuk HTML requests
+	} catch (error) {
+		console.log('[SW] Network failed for:', request.url);
+		
+		// 4. Provide fallbacks for offline
 		if (request.headers.get('accept')?.includes('text/html')) {
-			// Try different variations of index.html
-			const indexVariations = ['/', '/index.html', 'src/index.html'];
-			for (const variation of indexVariations) {
-				const cachedIndex = await caches.match(variation);
-				if (cachedIndex) {
-					return cachedIndex;
-				}
+			// HTML fallback
+			const fallbackHTML = await caches.match('/') || await caches.match('./index.html');
+			if (fallbackHTML) {
+				return fallbackHTML;
 			}
 		}
 		
-		// Return generic offline response
+		// Generic offline response
 		return new Response(
-			'Offline - Resource tidak tersedia', 
+			'Aplikasi sedang offline. Silakan coba lagi nanti.', 
 			{
 				status: 503,
 				statusText: 'Service Unavailable',
-				headers: { 'Content-Type': 'text/plain' }
+				headers: { 'Content-Type': 'text/plain; charset=utf-8' }
 			}
 		);
 	}
 }
 
-// Push notification handler
+// Push notification handler (KRITERIA WAJIB 2)
 self.addEventListener('push', function (event) {
 	console.log('[Service Worker] Push received:', event);
 	
 	let notificationData = {
 		title: 'Story App',
 		body: 'Ada update baru!',
-		icon: 'src/public/icon/icons/icon-96x96.png',
-		badge: 'src/public/icon/icons/icon-96x96.png',
+		icon: '/icon-96x96.png', // fallback icon
+		badge: '/icon-96x96.png',
 		tag: 'story-app-notification',
 		data: { url: '/' },
 	};
@@ -285,7 +210,7 @@ self.addEventListener('notificationclick', function (event) {
 	);
 });
 
-// Background Sync
+// Background Sync (KRITERIA WAJIB 4 - IndexedDB integration)
 self.addEventListener('sync', function (event) {
 	console.log('[Service Worker] Background sync:', event.tag);
 	if (event.tag === 'sync-stories') {
@@ -293,7 +218,6 @@ self.addEventListener('sync', function (event) {
 	}
 });
 
-// Sync offline stories
 async function syncOfflineStories() {
 	try {
 		const queuedStories = await StoryDatabase.getQueuedStories();
@@ -306,7 +230,7 @@ async function syncOfflineStories() {
 				
 				self.registration.showNotification('Story Berhasil Disinkronkan', {
 					body: `Story "${story.description}" telah dikirim ke server`,
-					icon: 'src/public/icon/icons/icon-96x96.png',
+					icon: '/icon-96x96.png',
 					tag: 'sync-success',
 				});
 			} catch (error) {
