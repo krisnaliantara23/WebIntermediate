@@ -55,6 +55,19 @@
 			"sizes": "512x512",
 			"type": "image/png",
 			"purpose": "any"
+		},
+		{
+			"src": "images/HeartRate.png",
+			"sizes": "152x152",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		
+		{
+			"src": "icon/star.svg",
+			"sizes": "256x256",
+			"type": "image/png",
+			"purpose": "any"
 		}
 	]
 }

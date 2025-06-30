@@ -126,7 +126,7 @@ const AddStoryView = {
           await sendStory(story);
           NotificationHelper.showNotification('Story berhasil dikirim!', {
             body: 'Story baru sudah dikirim ke server.',
-            icon: '/icons/icons/star.svg',
+            icon: '/icon/star.svg',
           });
         } else {
           await StoryDatabase.queueStory(story);

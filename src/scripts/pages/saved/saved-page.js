@@ -1,4 +1,5 @@
-import StoryDatabase from '../../data/database';
+// PERBAIKAN: Tambahkan .js extension
+import StoryDatabase from '../../data/database.js';
 
 const SavedPage = {
   async render() {
@@ -15,7 +16,8 @@ const SavedPage = {
     container.innerHTML = '';
 
     try {
-      const savedStories = await StoryDatabase.getAllStories();
+      // PERBAIKAN: Gunakan getAllBookmarks() bukan getAllStories()
+      const savedStories = await StoryDatabase.getAllBookmarks();
 
       if (savedStories.length === 0) {
         container.innerHTML = '<p class="no-stories">No saved stories found.</p>';
@@ -35,6 +37,7 @@ const SavedPage = {
               <span class="story-date">${new Date(story.createdAt).toLocaleDateString("id-ID", {
                 year: "numeric", month: "short", day: "numeric"
               })}</span>
+              ${story.bookmarkedAt ? `<span class="saved-date">Saved: ${new Date(story.bookmarkedAt).toLocaleDateString("id-ID")}</span>` : ''}
             </div>
           </div>
           <div class="story-content">
@@ -45,18 +48,19 @@ const SavedPage = {
                 ? `<p class="story-location">📍 Lat: ${story.lat}, Lon: ${story.lon}</p>`
                 : ""
             }
-            <button class="btn-delete-story" aria-label="Hapus story">🗑 Hapus</button>
+            <button class="btn-delete-story" aria-label="Hapus story">🗑 Hapus dari Saved</button>
           </div>
         `;
 
-        // Tombol hapus
+        // Tombol hapus - hapus dari bookmarks bukan dari stories
         const deleteBtn = card.querySelector('.btn-delete-story');
         deleteBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const confirmDelete = confirm(`Yakin ingin hapus story dari ${story.name}?`);
+          const confirmDelete = confirm(`Yakin ingin hapus story dari ${story.name} dari saved stories?`);
           if (!confirmDelete) return;
 
-          await StoryDatabase.deleteStory(story.id);
+          // PERBAIKAN: Hapus dari bookmark store, bukan story store
+          await StoryDatabase.deleteBookmark(story.id);
           card.remove();
 
           if (!container.querySelector('.story-card')) {

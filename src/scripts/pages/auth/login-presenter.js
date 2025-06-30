@@ -16,7 +16,7 @@ const LoginPresenter = {
         localStorage.setItem('token', token);
         NotificationHelper.showNotification('👋 Selamat datang kembali!', {
           body: 'Login berhasil. Silakan mulai berbagi story.',
-          icon: '/images/icons/maskable_icon_x192.png',
+          icon: '/images/HeartRate.png',
         });
         return true;
       } else {

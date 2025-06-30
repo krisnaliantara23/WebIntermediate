@@ -1,8 +1,17 @@
-import StoryDatabase from "../../data/database";
-import { getAllStories } from "../../data/api";
-import NotificationHelper from "../../utils/notification-helper";
-import logo from "../../../public/images/logo.png";
-import L from 'leaflet';
+// PERBAIKAN: Tambahkan .js extension dan perbaiki import path
+import StoryDatabase from "../../data/database.js";
+import { getAllStories } from "../../data/api.js";
+import NotificationHelper from "../../utils/notification-helper.js";
+
+// PERBAIKAN: Import logo dengan cara yang benar untuk bundler
+// import logo dari path relatif sesuai struktur direktori
+// atau gunakan URL string jika menggunakan bundler
+const logo = "./images/logo.png";
+
+// PERBAIKAN: Import Leaflet dengan cara yang benar
+// Pastikan Leaflet sudah di-load via CDN atau bundle
+// import L from 'leaflet'; // Jika menggunakan bundler
+// atau gunakan global L jika via CDN
 
 class HomePresenter {
   constructor({ view, loadingIndicator, errorMessage, mapContainer }) {
@@ -57,6 +66,20 @@ class HomePresenter {
   _initializeMap(stories) {
     if (!this._mapContainer) {
       console.error('Map container not found');
+      return;
+    }
+
+    // PERBAIKAN: Cek apakah Leaflet tersedia
+    if (typeof L === 'undefined') {
+      console.error('Leaflet is not loaded');
+      this._mapContainer.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f8f9fa; border-radius: 10px; border: 2px dashed #dee2e6;">
+          <div style="text-align: center; color: #6c757d;">
+            <h3>🗺️ Map Library Error</h3>
+            <p>Leaflet library is not loaded. Please check your scripts.</p>
+          </div>
+        </div>
+      `;
       return;
     }
 
@@ -228,6 +251,13 @@ class HomePresenter {
     }
   }
 
+  _showError(message) {
+    if (this._errorMessage) {
+      this._errorMessage.textContent = message;
+      this._errorMessage.style.display = "block";
+    }
+  }
+
   _displayStories(stories, isOffline = false) {
     this._view.innerHTML = "";
     
@@ -256,14 +286,38 @@ class HomePresenter {
       `;
 
       const saveButton = card.querySelector(".btn-save");
+      
+      // PERBAIKAN: Event listener untuk save button
       saveButton.addEventListener("click", async (e) => {
         e.stopPropagation();
         try {
-          await StoryDatabase.putStory(story);
-          alert("✅ Story berhasil disimpan!");
+          // Cek apakah sudah di-bookmark
+          const isAlreadyBookmarked = await StoryDatabase.isBookmarked(story.id);
+          
+          if (isAlreadyBookmarked) {
+            // Jika sudah di-bookmark, hapus dari bookmark
+            await StoryDatabase.deleteBookmark(story.id);
+            saveButton.textContent = "Simpan";
+            saveButton.classList.remove("saved");
+            alert("✅ Story dihapus dari saved!");
+          } else {
+            // Jika belum di-bookmark, tambahkan ke bookmark
+            await StoryDatabase.addBookmark(story);
+            saveButton.textContent = "Tersimpan";
+            saveButton.classList.add("saved");
+            alert("✅ Story berhasil disimpan!");
+          }
         } catch (error) {
           alert("❌ Gagal menyimpan story!");
           console.error(error);
+        }
+      });
+
+      // Cek status bookmark dan update tampilan button
+      StoryDatabase.isBookmarked(story.id).then(isBookmarked => {
+        if (isBookmarked) {
+          saveButton.textContent = "Tersimpan";
+          saveButton.classList.add("saved");
         }
       });
 
@@ -288,95 +342,121 @@ class HomePresenter {
   }
 
   _showStoryDetails(story) {
-    const modal = document.createElement("div");
-    modal.className = "story-modal";
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
+    // PERBAIKAN: Lengkapi method _showStoryDetails
+    const modal = document.createElement('div');
+    modal.className = 'story-modal';
+    modal.innerHTML = `
+      <div class="modal-overlay" onclick="this.parentElement.remove()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+          <div class="modal-header">
+            <h2>${story.name}</h2>
+            <button class="modal-close" onclick="this.closest('.story-modal').remove()">×</button>
+          </div>
+          <div class="modal-body">
+            <img src="${story.photoUrl}" alt="${story.name}" class="modal-image" 
+                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxjaXJjbGUgY3g9IjIwMCIgY3k9IjE1MCIgcj0iNDAiIGZpbGw9IiNEMUQ1REIiLz4KPHBhdGggZD0iTTE4MCA4MEwyNDAgMTUwTDE4MCAyMjBaIiBmaWxsPSIjOUM5Q0EwIi8+Cjx0ZXh0IHg9IjIwMCIgeT0iMjcwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM2QjcyODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkltYWdlIG5vdCBhdmFpbGFibGU8L3RleHQ+Cjwvc3ZnPg=='" />
+            <div class="story-info">
+              <p class="story-description">${story.description}</p>
+              <div class="story-meta">
+                <p><strong>Created:</strong> ${this._formatDate(story.createdAt)}</p>
+                ${story.lat && story.lon ? `<p><strong>Location:</strong> ${parseFloat(story.lat).toFixed(4)}, ${parseFloat(story.lon).toFixed(4)}</p>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     `;
 
-    modal.innerHTML = `
-      <div class="modal-content" style="
-        background: white;
-        padding: 2rem;
-        border-radius: 12px;
-        max-width: 600px;
-        max-height: 80vh;
-        overflow-y: auto;
-        position: relative;
-        margin: 20px;
-      ">
-        <span class="close-modal" style="
+    // Add modal styles if not already present
+    if (!document.querySelector('#story-modal-styles')) {
+      const styles = document.createElement('style');
+      styles.id = 'story-modal-styles';
+      styles.textContent = `
+        .story-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 1000;
+        }
+        .modal-overlay {
           position: absolute;
-          top: 15px;
-          right: 20px;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        .modal-content {
+          background: white;
+          border-radius: 10px;
+          max-width: 600px;
+          width: 100%;
+          max-height: 80vh;
+          overflow-y: auto;
+          position: relative;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          border-bottom: 1px solid #eee;
+        }
+        .modal-header h2 {
+          margin: 0;
+          color: #333;
+        }
+        .modal-close {
+          background: none;
+          border: none;
           font-size: 24px;
           cursor: pointer;
           color: #666;
+          padding: 0;
           width: 30px;
           height: 30px;
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 50%;
-          background: #f0f0f0;
-        ">&times;</span>
-        <img src="${story.photoUrl}" alt="Story by ${story.name}" 
-             style="width: 100%; max-height: 300px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;"
-             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDYwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxjaXJjbGUgY3g9IjMwMCIgY3k9IjE1MCIgcj0iNjAiIGZpbGw9IiNEMUQ1REIiLz4KPHBhdGggZD0iTTI2MCAyMTBMMzQwIDEzMEwyNjAgNTBaIiBmaWxsPSIjOUM5Q0EwIi8+Cjx0ZXh0IHg9IjMwMCIgeT0iMjYwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM2QjcyODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkltYWdlIG5vdCBhdmFpbGFibGU8L3RleHQ+Cjwvc3ZnPg=='" />
-        <h2 style="margin: 0 0 1rem 0; color: #333;">${story.name}</h2>
-        <p style="margin: 0 0 1rem 0; color: #666; line-height: 1.6;">${story.description}</p>
-        <p style="margin: 0 0 0.5rem 0; color: #999; font-size: 0.9rem;">📅 ${this._formatDate(story.createdAt)}</p>
-        ${
-          story.lat && story.lon
-            ? `<p style="margin: 0; color: #999; font-size: 0.9rem;">📍 Location: ${story.lat}, ${story.lon}</p>`
-            : ""
         }
-      </div>
-    `;
+        .modal-close:hover {
+          color: #333;
+        }
+        .modal-body {
+          padding: 20px;
+        }
+        .modal-image {
+          width: 100%;
+          height: 300px;
+          object-fit: cover;
+          border-radius: 5px;
+          margin-bottom: 15px;
+        }
+        .story-description {
+          font-size: 16px;
+          line-height: 1.6;
+          color: #333;
+          margin-bottom: 20px;
+        }
+        .story-meta {
+          border-top: 1px solid #eee;
+          padding-top: 15px;
+        }
+        .story-meta p {
+          margin: 5px 0;
+          color: #666;
+        }
+      `;
+      document.head.appendChild(styles);
+    }
 
     document.body.appendChild(modal);
-
-    const closeBtn = modal.querySelector(".close-modal");
-    closeBtn.addEventListener("click", () => modal.remove());
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) modal.remove();
-    });
-    
-    document.addEventListener("keydown", function escapeHandler(e) {
-      if (e.key === "Escape") {
-        modal.remove();
-        document.removeEventListener("keydown", escapeHandler);
-      }
-    });
-
-    closeBtn.focus();
-  }
-
-  _showError(message) {
-    this._view.innerHTML = `
-      <div class="error-state" style="text-align: center; padding: 2rem; color: #666;">
-        <h3>Oops!</h3>
-        <p>${message}</p>
-        <button onclick="location.reload()" class="retry-btn" style="
-          background: var(--primary-color);
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 5px;
-          cursor: pointer;
-          margin-top: 1rem;
-        ">Try Again</button>
-      </div>
-    `;
   }
 }
 
