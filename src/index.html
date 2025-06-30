@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dicoding Story App</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./app.webmanifest" />
+    <meta name="theme-color" content="#2196f3" />
+
+    <!-- iOS PWA Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Dicoding Story" />
+    <link rel="apple-touch-icon" href="./images/logo.png" />
+
+    <!-- PWA Icons -->
+    <link rel="icon" href="./favicon.ico" />
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  </head>
+
+  <body>
+    <!-- Skip to content for accessibility -->
+    <a href="#main-content" class="skip-to-content">Lewati ke Konten</a>
+
+    <header>
+      <div class="main-header container">
+        <a class="brand-name" href="#/" tabindex="0">Dicoding Story App</a>
+
+        <nav id="navigation-drawer" class="navigation-drawer" role="navigation" aria-label="Main navigation">
+          <ul class="nav-list">
+            <li><a href="#/" tabindex="0">Home</a></li>
+            <li><a href="#/add" tabindex="0">Tambah Story</a></li>
+            <li><a href="#/about" tabindex="0">About</a></li>
+            <li><a href="#/saved" tabindex="0">Saved</a></li>
+            <li><a href="#/login" tabindex="0">Login</a></li>
+            <li><a href="#/register" tabindex="0">Register</a></li>
+            <li>
+              <button id="logout-btn" class="logout-btn" style="display: none" tabindex="0">
+                <i class="fas fa-sign-out-alt"></i> Logout
+              </button>
+            </li>
+          </ul>
+        </nav>
+
+        <button id="drawer-button" class="drawer-button" aria-label="Menu" tabindex="0">
+          ☰
+        </button>
+      </div>
+    </header>
+
+    <main id="main-content" class="main-content" role="main"></main>
+
+    <footer>
+      <p>&copy; 2025 Aplikasi Berbagi Story. Semua hak cipta dilindungi.</p>
+    </footer>
+  </body>
+</html>
