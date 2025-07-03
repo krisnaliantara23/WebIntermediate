@@ -1,9 +1,9 @@
 {
-	"id": "restoqiuw-lite-pwa-1",
+	"id": "krisna-lite-pwa-1",
 	"start_url": "./index.html",
-	"name": "Restoqiuw Lite",
-	"short_name": "Restoqiuw",
-	"description": "Restoqiuw",
+	"name": "Krisna Liantara",
+	"short_name": "Krisna",
+	"description": "KrisnaLiantara",
 	"display": "standalone",
 	"background_color": "#FFFFFF",
 	"theme_color": "#D84315",
