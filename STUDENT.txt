@@ -1,2 +1,2 @@
-APP_URL=<https://mellifluous-cassata-2486e2.netlify.app/#/>
+APP_URL=<https://scintillating-brioche-8480ba.netlify.app/#/>
 MAP_SERVICE_API_KEY=<api_key>

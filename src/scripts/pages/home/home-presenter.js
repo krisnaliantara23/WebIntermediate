@@ -3,15 +3,7 @@ import StoryDatabase from "../../data/database.js";
 import { getAllStories } from "../../data/api.js";
 import NotificationHelper from "../../utils/notification-helper.js";
 
-// PERBAIKAN: Import logo dengan cara yang benar untuk bundler
-// import logo dari path relatif sesuai struktur direktori
-// atau gunakan URL string jika menggunakan bundler
 const logo = "./images/logo.png";
-
-// PERBAIKAN: Import Leaflet dengan cara yang benar
-// Pastikan Leaflet sudah di-load via CDN atau bundle
-// import L from 'leaflet'; // Jika menggunakan bundler
-// atau gunakan global L jika via CDN
 
 class HomePresenter {
   constructor({ view, loadingIndicator, errorMessage, mapContainer }) {
